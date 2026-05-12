@@ -222,8 +222,12 @@ app.get('/proxy/:encodedUrl', async (req, res) => {
   }
 });
 
+// 开发环境禁用静态资源长期缓存，避免修改 js/config.js 后浏览器仍用旧版
+const staticMaxAge =
+  process.env.NODE_ENV === 'development' ? 0 : config.cacheMaxAge;
+
 app.use(express.static(path.join(__dirname), {
-  maxAge: config.cacheMaxAge
+  maxAge: staticMaxAge
 }));
 
 app.use((err, req, res, next) => {

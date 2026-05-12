@@ -7,21 +7,17 @@
 let cachedPasswordHash = null;
 
 /**
- * 获取当前会话的密码哈希
+ * 同步获取可用的密码哈希（不含需异步 sha256 的 userPassword 分支）
  */
-async function getPasswordHash() {
+function getPasswordHashSync() {
     if (cachedPasswordHash) {
         return cachedPasswordHash;
     }
-    
-    // 1. 优先从已存储的代理鉴权哈希获取
     const storedHash = localStorage.getItem('proxyAuthHash');
     if (storedHash) {
         cachedPasswordHash = storedHash;
         return storedHash;
     }
-    
-    // 2. 尝试从密码验证状态获取（password.js 验证后存储的哈希）
     const passwordVerified = localStorage.getItem('passwordVerified');
     const storedPasswordHash = localStorage.getItem('passwordHash');
     if (passwordVerified === 'true' && storedPasswordHash) {
@@ -29,12 +25,26 @@ async function getPasswordHash() {
         cachedPasswordHash = storedPasswordHash;
         return storedPasswordHash;
     }
-    
-    // 3. 尝试从用户输入的密码生成哈希
+    if (window.__ENV__ && window.__ENV__.PASSWORD) {
+        cachedPasswordHash = window.__ENV__.PASSWORD;
+        return window.__ENV__.PASSWORD;
+    }
+    return null;
+}
+
+/**
+ * 获取当前会话的密码哈希
+ */
+async function getPasswordHash() {
+    const sync = getPasswordHashSync();
+    if (sync) {
+        return sync;
+    }
+
+    // 尝试从用户输入的密码生成哈希（仅异步路径）
     const userPassword = localStorage.getItem('userPassword');
     if (userPassword) {
         try {
-            // 动态导入 sha256 函数
             const { sha256 } = await import('./sha256.js');
             const hash = await sha256(userPassword);
             localStorage.setItem('proxyAuthHash', hash);
@@ -44,14 +54,20 @@ async function getPasswordHash() {
             console.error('生成密码哈希失败:', error);
         }
     }
-    
-    // 4. 如果用户没有设置密码，尝试使用环境变量中的密码哈希
-    if (window.__ENV__ && window.__ENV__.PASSWORD) {
-        cachedPasswordHash = window.__ENV__.PASSWORD;
-        return window.__ENV__.PASSWORD;
-    }
-    
+
     return null;
+}
+
+/**
+ * 为代理 URL 追加鉴权查询串（同步，供 img onerror 等无法 await 的场景）
+ */
+function appendProxyAuthQuery(url) {
+    const hash = getPasswordHashSync();
+    if (!hash) {
+        return url;
+    }
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}auth=${encodeURIComponent(hash)}&t=${Date.now()}`;
 }
 
 /**
@@ -121,6 +137,7 @@ window.addEventListener('storage', (e) => {
 // 导出函数
 window.ProxyAuth = {
     addAuthToProxyUrl,
+    appendProxyAuthQuery,
     validateProxyAuth,
     clearAuthCache,
     getPasswordHash

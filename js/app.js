@@ -11,8 +11,38 @@ let currentVideoTitle = '';
 // 全局变量用于倒序状态
 let episodesReversed = false;
 
+/**
+ * 与当前 API_SITES / customAPIs 对齐：去掉 localStorage 里已失效的源 id。
+ * 改 config 后若仍勾选旧 key，搜索会一直为空。
+ */
+function pruneInvalidSelectedAPIs() {
+    if (!Array.isArray(selectedAPIs)) {
+        selectedAPIs = [];
+    }
+    const knownBuiltin = new Set(Object.keys(API_SITES));
+    selectedAPIs = selectedAPIs.filter((id) => {
+        if (typeof id !== 'string') return false;
+        if (id.startsWith('custom_')) {
+            const i = parseInt(id.replace('custom_', ''), 10);
+            return !Number.isNaN(i) && i >= 0 && i < customAPIs.length;
+        }
+        return knownBuiltin.has(id);
+    });
+    if (selectedAPIs.length === 0) {
+        const preferred = ['tyyszy', 'bfzy', 'dyttzy', 'ruyi'].filter((id) => knownBuiltin.has(id));
+        if (preferred.length) {
+            selectedAPIs = preferred;
+        } else {
+            const builtins = Object.keys(API_SITES).filter((k) => !API_SITES[k].adult);
+            selectedAPIs = builtins.slice(0, Math.min(4, builtins.length));
+        }
+    }
+    localStorage.setItem('selectedAPIs', JSON.stringify(selectedAPIs));
+}
+
 // 页面初始化
 document.addEventListener('DOMContentLoaded', function () {
+    pruneInvalidSelectedAPIs();
     // 初始化API复选框
     initAPICheckboxes();
 
@@ -694,7 +724,7 @@ async function search() {
                               d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <h3 class="mt-2 text-lg font-medium text-gray-400">没有找到匹配的结果</h3>
-                    <p class="mt-1 text-sm text-gray-500">请尝试其他关键词或更换数据源</p>
+                    <p class="mt-1 text-sm text-gray-500">请尝试其他关键词、在设置中勾选要搜索的数据源，或暂时关闭「黄色内容过滤」后重试</p>
                 </div>
             `;
             hideLoading();

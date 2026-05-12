@@ -222,6 +222,11 @@
         // 保存原始 js‑sha256 实现，避免被 password.js 覆盖
         window._jsSha256 = window.sha256;
     </script>
+    <!-- 必须在 proxy-auth.js 之前注入 -->
+    <script>
+        window.__ENV__ = window.__ENV__ || {};
+        window.__ENV__.PASSWORD = "{{PASSWORD}}";
+    </script>
     
     <script src="libs/hls.min.js" crossorigin="anonymous"></script>
     <script src="libs/artplayer.min.js" crossorigin="anonymous"></script>
@@ -236,13 +241,6 @@
     <script src="js/player.js"></script>
 
     <script>
-        // 创建全局环境变量对象
-        window.__ENV__ = window.__ENV__ || {};
-        
-        // 注入服务器端环境变量 (将由服务器端替换)
-        // PASSWORD 变量将在这里被服务器端注入
-        window.__ENV__.PASSWORD = "{{PASSWORD}}";
-
         // 修复 home 跳转
         document.addEventListener('DOMContentLoaded', function() {
             // 使用事件委托处理首页按钮点击

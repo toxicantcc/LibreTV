@@ -40,13 +40,18 @@ async function searchByAPIAndKeyWord(apiId, query) {
         }
         
         const data = await response.json();
-        
-        if (!data || !data.list || !Array.isArray(data.list) || data.list.length === 0) {
+
+        // 部分 CMS 将 list 序列化为 JSON 对象而非数组，这里统一成数组
+        let list = data && data.list;
+        if (list && !Array.isArray(list) && typeof list === 'object') {
+            list = Object.values(list);
+        }
+        if (!data || !Array.isArray(list) || list.length === 0) {
             return [];
         }
         
         // 处理第一页结果
-        const results = data.list.map(item => ({
+        const results = list.map(item => ({
             ...item,
             source_name: apiName,
             source_code: apiId,
@@ -89,11 +94,14 @@ async function searchByAPIAndKeyWord(apiId, query) {
                         if (!pageResponse.ok) return [];
                         
                         const pageData = await pageResponse.json();
-                        
-                        if (!pageData || !pageData.list || !Array.isArray(pageData.list)) return [];
-                        
+                        let pageList = pageData && pageData.list;
+                        if (pageList && !Array.isArray(pageList) && typeof pageList === 'object') {
+                            pageList = Object.values(pageList);
+                        }
+                        if (!pageData || !Array.isArray(pageList)) return [];
+
                         // 处理当前页结果
-                        return pageData.list.map(item => ({
+                        return pageList.map(item => ({
                             ...item,
                             source_name: apiName,
                             source_code: apiId,
